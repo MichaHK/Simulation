@@ -1,5 +1,8 @@
 from math import sqrt
 from numba import jit
+import numpy as np
+from numpy.polynomial.polynomial import polyval
+
 
 
 @jit(nopython=True)
@@ -54,21 +57,36 @@ def exp_wall_force(y, ChannelLength_um):
     # n = -6
     # x1 = -24.8416038
     # x2 = ChannelLength_um - x1
+    # f= a * (y - x1) ** n - a * (y - x2) ** n
     ## for 20190212_dblLineAsym2, 20190214_dblLineAsym\DEP20X1p5X_S25_2TMA_0H2O2_0p64pp_flippedDevice_007_EnergyForceProfiles.csv WITH n=-4
     # a = 1*10**(-9)
     # n = -4
     # x1 = -21
     # x2 = ChannelLength_um - x1
+    # f= a * (y - x1) ** n - a * (y - x2) ** n
     ## for 20190212_dblLineAsym2, 20190214_dblLineAsym\DEP20X1p5X_S25_2TMA_0H2O2_0p64pp_flippedDevice_008_EnergyForceProfiles.csv WITH n=-6
-    a = 3*10**(-7)
-    n = -6
-    x1 = -13.5
-    x2 = ChannelLength_um - x1
+    # a = 3*10**(-7)
+    # n = -6
+    # x1 = -13.5
+    # x2 = ChannelLength_um - x1
+    # f= a * (y - x1) ** n - a * (y - x2) ** n
     ## for 20190212_dblLineAsym2, 20190214_dblLineAsym\DEP20X1p5X_S25_2TMA_0H2O2_0p64pp_flippedDevice_007_EnergyForceProfiles.csv"
     # a = 1.4 * 10 ** (-6)
     # n = -6
     # x1 = -24.8416038
     # x2 = ChannelLength_um - x1
-
-    f= a * (y - x1) ** n - a * (y - x2) ** n
+    # f= a * (y - x1) ** n - a * (y - x2) ** n
+    ### for 20190926_HMDS_AF_tau_SDS_Relay, symmetric
+    c = np.array([ 3.09181533e-13, -2.70637678e-14,  6.81952833e-16,  7.61094708e-18,
+                   -6.93498680e-19,  1.33942944e-20, -1.10488889e-22,  3.35447450e-25])
+    # f = polyval(y,c)
+    ind = 0;
+    f = 0;
+    # equivilant to polyval which does not work with jit:
+    # for param in c:
+    #     f += param * y ** (ind)
+    #     ind += 1;
+    f = (3.09181533e-13*y**0 + -2.70637678e-14*y**1 + 6.81952833e-16*y**2 + 7.61094708e-18*y**3
+         - 6.93498680e-19*y**4 + 1.33942944e-20*y**5 + -1.10488889e-22*y**6 + 3.35447450e-25*y**7)
+    # f= a * (y - x1) ** n - a * (y - x2) ** n
     return f

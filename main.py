@@ -12,34 +12,34 @@ from SimulationLoop import runSimulationTorqueNoPPInt, runSimulationTorquePPInt
 from math import ceil, floor, sqrt
 import matplotlib.pyplot as plt
 
-subFolder = '20190212_dblLineAsym2/With008CalibDragMult2'
-SaveCoords = True
+subFolder = '20190926_HMDS_AF_tau_SDS_Relay/Drag2'
+SaveCoords = False
 ### Setting pp interactions
 epsilon =  10 ** (-15)
 radius = 1
 ppType = 'WCA'
 ###  setting wall interactions
 WallType = 'experimental' #'BiHarm'#'linear' #  go into forces.py and make sure you are using the right profile.
-Voltage_eq = 0.64
-ForceExp = 1  # change it here or meta files will be bad.
+Voltage_eq = 8
+ForceExp = 'polynom 7'  # change it here or meta files will be bad.
 f_max_N = 5 * 10 ** (-15)
 y_wl = 10
-y_wr = 50
+y_wr = 90
 RhoZeroLocation_um = np.mean([y_wl, y_wr])
-ChannelLength_um = 97
-BoxX = ChannelLength_um * 2
+ChannelLength_um = 100
+BoxX = ChannelLength_um * 4
 ### setting simulation params
-ActiveVoltages = [10.2]
+ActiveVoltages = [8]
 D_T = 0.1  # use um^2/s, translational
-D_Rs = [1/10]
+D_Rs = [1/3, 1/5, 1/10, 1/20]
 Cs = [1]  # ratio between the
 # effective dielectric constants (hematite/TPM). Less than 1 would push wall, more than 1 would scatter off the wall.
-NumberOfParticlesArray = [1]
+NumberOfParticlesArray = [100]
 dts = [0.05]
 numberOfSteps_s = [9000000]
 
-velocities = [2.7]
-drag_multiplier = 2
+velocities = [1, 1.3, 1.6 , 1.9, 2.4 , 3.9]
+drag_multiplier = 1
 kT = 4.11 * 10 ** (-21)
 bins = 400
 
@@ -69,11 +69,11 @@ arm = radius - 0.5*L_H
 rot_drag_N_sPum3 = kT / (8*np.pi*radius**3) * 10 ** 6
 
 ### folder to save
-if not os.path.isdir(subFolder):
-    os.mkdir(subFolder)  # creating new folder. WRONG WAY: use os.mkdir instead so will work on WSL as well.
 CurrentFolder = os.getcwd()
 CurrentFolder = CurrentFolder.replace('\\', r'/') + '/' + subFolder
 CurrentFolder = CurrentFolder.replace('/notebooks', '')
+if not os.path.isdir(subFolder):
+    os.mkdir(CurrentFolder)  # creating new folder.
 
 # run the simulation
 drag_N_sPum = drag_multiplier * kT / D_T * 10 ** 6
