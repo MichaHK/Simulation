@@ -12,8 +12,7 @@ from SimulationLoop import runSimulationTorqueNoPPInt, runSimulationTorquePPInt
 from math import ceil, floor, sqrt
 import matplotlib.pyplot as plt
 
-subFolder = '20190926_HMDS_AF_tau_SDS_Relay/Drag2'
-SaveCoords = False
+subFolder = '20190926_HMDS_AF_tau_SDS_Relay/FitDrag_movie'
 ### Setting pp interactions
 epsilon =  10 ** (-15)
 radius = 1
@@ -31,18 +30,21 @@ BoxX = ChannelLength_um * 4
 ### setting simulation params
 ActiveVoltages = [8]
 D_T = 0.1  # use um^2/s, translational
-D_Rs = [1/3, 1/5, 1/10, 1/20]
+D_Rs = [1/200]# [1/3, 1/5, 1/10, 1/20]
 Cs = [1]  # ratio between the
 # effective dielectric constants (hematite/TPM). Less than 1 would push wall, more than 1 would scatter off the wall.
+velocities = [3.5]
+drag_multiplier = 1.82
 NumberOfParticlesArray = [100]
 dts = [0.05]
-numberOfSteps_s = [9000000]
+numberOfSteps_s = [2000000]
 
-velocities = [1, 1.3, 1.6 , 1.9, 2.4 , 3.9]
-drag_multiplier = 1
+### setting up an optional coordinates file to investigate orientations and produce movies
+SaveCoords = True
+SamplingTimeForDensityProfile = 0.2 #radius / (velocity / D_R) / D_R/ 2
+
 kT = 4.11 * 10 ** (-21)
 bins = 400
-
 ################################################################################
 
 ### init pp interactions
@@ -91,7 +93,6 @@ for C in Cs:
                         # setting dt, number of steps and sampling intervals for simulation
                         dt=dts[ctr1]
                         numberOfSteps=numberOfSteps_s[ctr1]
-                        SamplingTimeForDensityProfile = 0.2 #radius / (velocity / D_R) / D_R/ 2
                         NumberOfSamplesForDensityProfile = ceil(numberOfSteps * dt / SamplingTimeForDensityProfile)
                         # initializing the exported sample coordinates.
                         coordsForProfile = np.empty([NumberOfSamplesForDensityProfile,
@@ -167,7 +168,8 @@ for C in Cs:
                                       epsilon, radius, PressureLeft_NPum, PressureRight_NPum, SumPressure_NPum, BoxX,
                                       CurrentFolder, ppType,
                                       AverageForceLeft_lastHalf, AverageForceRight_lastHalf, SumAverageForce_lastHalf,
-                                      PressureLeft_NPum_lastHalf, PressureRight_NPum_lastHalf, SumPressure_NPum_lastHalf, C, arm
+                                      PressureLeft_NPum_lastHalf, PressureRight_NPum_lastHalf, SumPressure_NPum_lastHalf, C, arm,
+                                      SamplingTimeForDensityProfile
                                       )
                         writeProbDistFunc(filenameBase, CurrentFolder, x_hist_lastHalf, hist_lastHalf)
                         if SaveCoords:

@@ -25,7 +25,8 @@ def writeMetaData(filenameBase, kT,drag_N_sPum,drag_multiplier,dt,numberOfSteps,
                   SumAverageForce, ProbAtCenter, NumberOfParticles,ForceExp ,f_max_N ,y_wl ,y_wr ,ChannelLength_um,
                   epsilon, radius,PressureLeft_NPum ,PressureRight_NPum, SumPressure_NPum, BoxX, CurrentFolder, ppType,
                   AverageForceLeft_lastHalf, AverageForceRight_lastHalf, SumAverageForce_lastHalf,
-                                      PressureLeft_NPum_lastHalf, PressureRight_NPum_lastHalf, SumPressure_NPum_lastHalf, C, arm):
+                  PressureLeft_NPum_lastHalf, PressureRight_NPum_lastHalf, SumPressure_NPum_lastHalf, C, arm,
+                  SamplingTimeForDensityProfile):
     NowDateObj = datetime.datetime.now()
     comments = "Force profile is saved to folder, so just multiply by ForceFactor to get the profile used here"
     exportDict = {'kT_J': kT, 'drag_N_sPum': drag_N_sPum, 'drag_multiplier': drag_multiplier,
@@ -46,7 +47,7 @@ def writeMetaData(filenameBase, kT,drag_N_sPum,drag_multiplier,dt,numberOfSteps,
                   "PressureLeft_NPum_lastHalf": PressureLeft_NPum_lastHalf, "PressureRight_NPum_lastHalf": PressureRight_NPum_lastHalf, "SumPressure_NPum_lastHalf": SumPressure_NPum_lastHalf,
                   'AverageForceLeft_N_lastHalf': AverageForceLeft_lastHalf, 'AverageForceRight_N_lastHalf': AverageForceRight_lastHalf, 'SumAverageForce_N_lastHalf': SumAverageForce_lastHalf,
                   "C_ratio_dlctrc_cnst": C, "arm_um_COM_to_HemCntr": arm,
-                  "comments": comments
+                  "comments": comments, "SamplingTimeForCoordsFile_s": SamplingTimeForDensityProfile
                   }  # "polynomParams": popt, 'PolynomCode': str(inspect.getsourcelines(ForcePolynomSym)[0]).replace(',',' '),
     ExportFilename2 = CurrentFolder + '/' + filenameBase + '_MetaData.csv'
     # if not os.path.isfile(fname): # if doesn't exist write headers too.
