@@ -425,7 +425,10 @@ def runSimulationTorqueNoPPInt(coordsForProfile, coordsForRunning, velocity, Num
                                drag_N_sPum, ForceFactor, ChannelLength_um,
                                radius, BoxX, BoxY, IntRange, D_T, D_R, y_wl, y_wr, f_max_N,
                                epsilon, ppType,
-                               TorqueFactor, arm, rot_drag_N_sPum3, WallType = 'linear'):
+                               TorqueFactor, arm, rot_drag_N_sPum3,
+                               ReportOrderParameter, Range_um_for_OrderParameterCalc, LocationsToReportOrderParameter,
+                               WallType = 'linear'):
+    #
     sigma = 2 * radius
     # noise: initial noise for first 10000 steps
     x_noises_um = sqrt(2 * D_T * dt) * np.random.randn(10000, NumberOfParticles) + 0
@@ -437,6 +440,10 @@ def runSimulationTorqueNoPPInt(coordsForProfile, coordsForRunning, velocity, Num
     gap = ceil(LastFrameToUse / NumberOfSamplesForDensityProfile)
     k = 0  # indicator for export array.
     coordsForProfile[0, :] = coordsForRunning[0, :] # p, x, y
+    # if ReportOrderParameter:
+    S = np.zeros(len(LocationsToReportOrderParameter))
+    OrderParameterSampleCounters = np.zeros(len(LocationsToReportOrderParameter))
+    OrderParameter = np.zeros(len(LocationsToReportOrderParameter))
     # Run over timesteps
     for i in range(1, numberOfSteps):
         # indexes for the two rows containing old and new coordinates (coordsForRunning)
@@ -483,6 +490,14 @@ def runSimulationTorqueNoPPInt(coordsForProfile, coordsForRunning, velocity, Num
             if np.abs(dTheta) > 0.2:
                 print('dTheta is', dTheta, 'at timestep' , i, 'and y location', coordsForRunning[jn, particle * 3 + 2])
 
+            if ReportOrderParameter:
+                y = coordsForRunning[jo, particle * 3 + 2]
+                ThetaDirectorAlongX = np.pi/2 - coordsForRunning[jn, particle * 3]
+                for ind in range(len(LocationsToReportOrderParameter)):
+                    if ((LocationsToReportOrderParameter[ind] - y)**2 < Range_um_for_OrderParameterCalc**2):
+                        S[ind] = S[ind] + (3*(np.cos(ThetaDirectorAlongX))**2 - 1) * 0.5
+                        OrderParameterSampleCounters[ind] = OrderParameterSampleCounters[ind] + 1
+
         for particle in range(NumberOfParticles):  # should be prange
             if coordsForRunning[jn, particle * 3 + 1] > BoxX:
                 coordsForRunning[jn, particle * 3 + 1] -= BoxX
@@ -500,83 +515,12 @@ def runSimulationTorqueNoPPInt(coordsForProfile, coordsForRunning, velocity, Num
                 coordsForProfile[k, 2::3] = coordsForRunning[jo, 2::3] # y
                 k += 1
     print('Done')
-    return coordsForProfile
-
-@jit(nopython=True)  # USE THIS, parallel=True)
-def runSimulationBasicCheckNoPPNoTorq(coordsForProfile, coordsForRunning, velocity, NumberOfParticles,
-                       dt, numberOfSteps, NumberOfSamplesForDensityProfile,
-                       drag_N_sPum, ForceFactor, ChannelLength_um,
-                       radius, BoxX, BoxY, IntRange, D_T, D_R, y_wl, y_wr, f_max_N, epsilon, ppType='WCA', WallType = 'linear'):
-    # noise: initial noise for first 10000 steps
-    x_noises_um = sqrt(2 * D_T * dt) * np.random.randn(10000, NumberOfParticles) + 0
-    y_noises_um = sqrt(2 * D_T * dt) * np.random.randn(10000, NumberOfParticles) + 0
-    p_noises = sqrt(2 * D_R * dt) * np.random.randn(10000, NumberOfParticles) + 0
-    # For export array:
-    LastFrameToUse = numberOfSteps - (numberOfSteps % NumberOfSamplesForDensityProfile)
-    residual = numberOfSteps % NumberOfSamplesForDensityProfile
-    gap = ceil(LastFrameToUse / NumberOfSamplesForDensityProfile)
-    k = 0  # indicator for export array.
-    coordsForProfile[0, :] = coordsForRunning[0, :]
-    f_left, f_right= 0,0
-    # Run over timesteps
-    for i in range(1, numberOfSteps):
-        # indexes for the two rows containing old and new coordinates (coordsForRunning)
-        jn = i % 2
-        jo = (i - 1) % 2
-        # progress bar
-        TenPercent = int(numberOfSteps / 10)
-        if i % TenPercent == 0:
-            print(i / numberOfSteps * 100, '%')
-        # generate noise every 10000 steps
-        Noise_ind = i % 10000
-        if Noise_ind == 0:
-            x_noises_um = sqrt(2 * D_T * dt) * np.random.randn(10000, NumberOfParticles) + 0
-            y_noises_um = sqrt(2 * D_T * dt) * np.random.randn(10000, NumberOfParticles) + 0
-            p_noises = sqrt(2 * D_R * dt) * np.random.randn(10000, NumberOfParticles) + 0
-        # running over all particles for diffusion, velocity and also to form the linked cell list.
-        for particle in range(NumberOfParticles):  # should be prange
-
-            # Adding contribution due to Diffusion and Velocity:
-            coordsForRunning[jn, particle * 3] = coordsForRunning[jo, particle * 3] + p_noises[
-                Noise_ind, particle]  # p coordinate of particle (angle)
-            coordsForRunning[jn, particle * 3 + 1] = coordsForRunning[jo, particle * 3 + 1] + x_noises_um[
-                Noise_ind, particle] + velocity * np.cos(
-                coordsForRunning[jo, particle * 3]) * dt  # x coordinate of particle (angle)
-            coordsForRunning[jn, particle * 3 + 2] = coordsForRunning[jo, particle * 3 + 2] + y_noises_um[
-                Noise_ind, particle] + velocity * np.sin(
-                coordsForRunning[jo, particle * 3]) * dt  # x coordinate of particle (angle)
-
-            # Adding contribution due to wall forces
-            if WallType == 'linear':
-                f = wall_force_linear(coordsForRunning[jo, particle * 3 + 2], f_max_N, y_wl, y_wr, ChannelLength_um)
-            if WallType == 'experimental':
-                f = exp_wall_force(coordsForRunning[jo, particle * 3 + 2], ChannelLength_um)
-            if WallType == 'BiHarm':
-                f = wall_force_biharm(coordsForRunning[jo, particle * 3 + 2], f_max_N, y_wl, y_wr, ChannelLength_um)
-            coordsForRunning[jn, particle * 3 + 2] += f / drag_N_sPum * ForceFactor * dt
-
-            # Calculate total force
-            if i>numberOfSteps/2:
-                if f < 0:
-                    f_right +=f * ForceFactor
-                if f > 0:
-                    f_left +=f * ForceFactor
-
-        for particle in range(NumberOfParticles):  # should be prange
-            if coordsForRunning[jn, particle * 3 + 1] > BoxX:
-                coordsForRunning[jn, particle * 3 + 1] -= BoxX
-            if coordsForRunning[jn, particle * 3 + 1] < 0:
-                coordsForRunning[jn, particle * 3 + 1] += BoxX
-
-        # Update profile data for export
-
-        if i >= residual:
-            UseForProfile = ((i + residual - 1) % gap == 0)
-            if UseForProfile:
-                coordsForProfile[k, 0::3] = coordsForRunning[jo, 0::3]
-                coordsForProfile[k, 1::3] = coordsForRunning[jo, 1::3]
-                coordsForProfile[k, 2::3] = coordsForRunning[jo, 2::3]
-                k += 1
-    print('Done')
-    return coordsForProfile, f_right, f_left
-
+    if ReportOrderParameter:
+        for ind in range(len(S)): # pythonian way not working with jit here
+            if OrderParameterSampleCounters[ind] != 0:
+                OrderParameter[ind] = S[ind]/ OrderParameterSampleCounters[ind]
+            else:
+                OrderParameter[ind] = np.nan
+    else:
+        OrderParameter = np.zeros(len(LocationsToReportOrderParameter))
+    return coordsForProfile, OrderParameter, OrderParameterSampleCounters

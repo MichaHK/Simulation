@@ -48,7 +48,7 @@ def writeMetaData(filenameBase, kT,drag_N_sPum,drag_multiplier,dt,numberOfSteps,
                   'AverageForceLeft_N_lastHalf': AverageForceLeft_lastHalf, 'AverageForceRight_N_lastHalf': AverageForceRight_lastHalf, 'SumAverageForce_N_lastHalf': SumAverageForce_lastHalf,
                   "C_ratio_dlctrc_cnst": C, "arm_um_COM_to_HemCntr": arm,
                   "comments": comments, "SamplingTimeForCoordsFile_s": SamplingTimeForDensityProfile
-                  }  # "polynomParams": popt, 'PolynomCode': str(inspect.getsourcelines(ForcePolynomSym)[0]).replace(',',' '),
+                  }  # "polynomParams": popt, 'PolynomCode': str(inspect.getsourcelines(ForcePolynomSym)[0]).replace(',',' '),,
     ExportFilename2 = CurrentFolder + '/' + filenameBase + '_MetaData.csv'
     # if not os.path.isfile(fname): # if doesn't exist write headers too.
     with open(ExportFilename2, 'w') as file:
@@ -67,7 +67,7 @@ def getFilenameBase(ActiveVoltage, velocity, D_T, D_R, NumberOfParticles, drag_m
               '_vel_' + str(velocity).replace('.', 'p') +
               '_Dt_' + str(D_T).replace('.', 'p') +
               '_C_' + str(C).replace('.', 'p') +
-              '_Dr_' + str(D_R).replace('.', 'p') +
+              '_Dr_' + str(np.round(D_R,2)).replace('.', 'p') +
               '_NumPrtcls_' + str(NumberOfParticles) +
               '_dragFactorToPsv_' + str(np.round(drag_multiplier, 2)).replace('.', 'p'))
     return string

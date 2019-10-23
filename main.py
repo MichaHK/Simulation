@@ -12,7 +12,7 @@ from SimulationLoop import runSimulationTorqueNoPPInt, runSimulationTorquePPInt
 from math import ceil, floor, sqrt
 import matplotlib.pyplot as plt
 
-subFolder = '20190926_HMDS_AF_tau_SDS_Relay/FitDrag_movie'
+subFolder = '20190926_HMDS_AF_tau_SDS_Relay/OrderParamScan'
 ### Setting pp interactions
 epsilon =  10 ** (-15)
 radius = 1
@@ -26,25 +26,34 @@ y_wl = 10
 y_wr = 90
 RhoZeroLocation_um = np.mean([y_wl, y_wr])
 ChannelLength_um = 100
+## spatial grid settings:
 BoxX = ChannelLength_um * 4
+bins = 400
 ### setting simulation params
 ActiveVoltages = [8]
 D_T = 0.1  # use um^2/s, translational
-D_Rs = [1/200]# [1/3, 1/5, 1/10, 1/20]
-Cs = [1]  # ratio between the
-# effective dielectric constants (hematite/TPM). Less than 1 would push wall, more than 1 would scatter off the wall.
-velocities = [3.5]
+
+Cs = [1]  # ratio between the effective dielectric constants (hematite/TPM). Less than 1 would push wall, more than 1 would scatter off the wall.
+# velocities = [0.2, 0.4, 1, 2, 4]
+# D_Rs = [1/50]
+velocities = [5]
+D_Rs = [1/2, 1/4, 1/10, 1/20, 1/40]
 drag_multiplier = 1.82
 NumberOfParticlesArray = [100]
 dts = [0.05]
-numberOfSteps_s = [2000000]
+numberOfSteps_s = [2000000] # s is for plural, not seconds. this is an array.
 
-### setting up an optional coordinates file to investigate orientations and produce movies
-SaveCoords = True
-SamplingTimeForDensityProfile = 0.2 #radius / (velocity / D_R) / D_R/ 2
+### OPTIONAL: setting up an optional coordinates file to investigate orientations and produce movies
+SaveCoords = False
+SamplingTimeForDensityProfile = 2 #radius / (velocity / D_R) / D_R/ 2
+
+### OPTIONAL: calculating order parameter S at specific location
+ReportOrderParameter = True
+Range_um_for_OrderParameterCalc = 2
+LocationsToReportOrderParameter = np.array([48.8-40, 50, 48.8+40])
 
 kT = 4.11 * 10 ** (-21)
-bins = 400
+
 ################################################################################
 
 ### init pp interactions
@@ -124,12 +133,14 @@ for C in Cs:
                         #                             radius, BoxX, BoxY, IntRange, D_T, D_R, y_wl, y_wr, f_max_N,
                         #                             epsilon, ppType, TorqueFactor, arm, rot_drag_N_sPum3, WallType = WallType)
 
-                        coords = runSimulationTorqueNoPPInt(coordsForProfile, coordsForRunning, velocity, NumberOfParticles,
+                        coords, OrderParameters, OrderParameterSampleCounters = runSimulationTorqueNoPPInt(coordsForProfile, coordsForRunning, velocity, NumberOfParticles,
                                                     dt, numberOfSteps, NumberOfSamplesForDensityProfile,
                                                     drag_N_sPum, ForceFactor, ChannelLength_um,
                                                     radius, BoxX, BoxY, IntRange, D_T, D_R, y_wl, y_wr, f_max_N,
-                                                    epsilon, ppType, TorqueFactor, arm, rot_drag_N_sPum3, WallType = WallType)
-
+                                                    epsilon, ppType, TorqueFactor, arm, rot_drag_N_sPum3,
+                                                    ReportOrderParameter, Range_um_for_OrderParameterCalc, LocationsToReportOrderParameter,
+                                                    WallType = WallType)
+                        #
 
                         elapsed = time.time() - t
                         print(elapsed)
@@ -175,6 +186,9 @@ for C in Cs:
                         if SaveCoords:
                             np.savetxt(subFolder + "/" + filenameBase + "_coords.csv", coords, delimiter=",")
 
+                        if ReportOrderParameter:
+                            ExportOrderParamArray = np.vstack([LocationsToReportOrderParameter, OrderParameters, OrderParameterSampleCounters])
+                            np.savetxt(subFolder + "/" + filenameBase + "_OrderParam.csv", ExportOrderParamArray.T, delimiter=",")
 
 # save force profile to folder
 ExportArray=np.vstack((dist_Eq,Force_Eq))
