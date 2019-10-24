@@ -428,23 +428,23 @@ def runSimulationTorqueNoPPInt(coordsForProfile, coordsForRunning, velocity, Num
                                TorqueFactor, arm, rot_drag_N_sPum3,
                                ReportOrderParameter, Range_um_for_OrderParameterCalc, LocationsToReportOrderParameter,
                                WallType = 'linear'):
-    #
+    ##
     sigma = 2 * radius
-    # noise: initial noise for first 10000 steps
+    ## noise: initial noise for first 10000 steps
     x_noises_um = sqrt(2 * D_T * dt) * np.random.randn(10000, NumberOfParticles) + 0
     y_noises_um = sqrt(2 * D_T * dt) * np.random.randn(10000, NumberOfParticles) + 0
     p_noises = sqrt(2 * D_R * dt) * np.random.randn(10000, NumberOfParticles) + 0
-    # For export array:
+    ## For export array:
     LastFrameToUse = numberOfSteps - (numberOfSteps % NumberOfSamplesForDensityProfile)
     residual = numberOfSteps % NumberOfSamplesForDensityProfile
     gap = ceil(LastFrameToUse / NumberOfSamplesForDensityProfile)
     k = 0  # indicator for export array.
     coordsForProfile[0, :] = coordsForRunning[0, :] # p, x, y
-    # if ReportOrderParameter:
-    S = np.zeros(len(LocationsToReportOrderParameter))
-    OrderParameterSampleCounters = np.zeros(len(LocationsToReportOrderParameter))
-    OrderParameter = np.zeros(len(LocationsToReportOrderParameter))
-    # Run over timesteps
+    if ReportOrderParameter:
+        S = np.zeros(len(LocationsToReportOrderParameter))
+        OrderParameterSampleCounters = np.zeros(len(LocationsToReportOrderParameter))
+        OrderParameter = np.zeros(len(LocationsToReportOrderParameter))
+    ## Run over timesteps
     for i in range(1, numberOfSteps):
         # indexes for the two rows containing old and new coordinates (coordsForRunning)
         jn = i % 2
@@ -492,10 +492,10 @@ def runSimulationTorqueNoPPInt(coordsForProfile, coordsForRunning, velocity, Num
 
             if ReportOrderParameter:
                 y = coordsForRunning[jo, particle * 3 + 2]
-                ThetaDirectorAlongX = np.pi/2 - coordsForRunning[jn, particle * 3]
+                Theta = coordsForRunning[jn, particle * 3]
                 for ind in range(len(LocationsToReportOrderParameter)):
                     if ((LocationsToReportOrderParameter[ind] - y)**2 < Range_um_for_OrderParameterCalc**2):
-                        S[ind] = S[ind] + (3*(np.cos(ThetaDirectorAlongX))**2 - 1) * 0.5
+                        S[ind] = S[ind] + (2*(np.cos(Theta))**2 - 1)
                         OrderParameterSampleCounters[ind] = OrderParameterSampleCounters[ind] + 1
 
         for particle in range(NumberOfParticles):  # should be prange

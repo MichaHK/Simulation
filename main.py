@@ -34,14 +34,16 @@ ActiveVoltages = [8]
 D_T = 0.1  # use um^2/s, translational
 
 Cs = [1]  # ratio between the effective dielectric constants (hematite/TPM). Less than 1 would push wall, more than 1 would scatter off the wall.
-# velocities = [0.2, 0.4, 1, 2, 4]
-# D_Rs = [1/50]
-velocities = [5]
-D_Rs = [1/2, 1/4, 1/10, 1/20, 1/40]
+velocities = [4.5]
+D_Rs = [1/(20/4.5), 1/(100/4.5), 1/(200/4.5)]
+kT = 4.11 * 10 ** (-21)
 drag_multiplier = 1.82
+D_T_drag = 0.1 # use um^2/s, translational
+drag_N_sPum = drag_multiplier * kT / D_T_drag * 10 ** 6
+
 NumberOfParticlesArray = [100]
 dts = [0.05]
-numberOfSteps_s = [2000000] # s is for plural, not seconds. this is an array.
+numberOfSteps_s = [8000000] # s is for plural, not seconds. this is an array.
 
 ### OPTIONAL: setting up an optional coordinates file to investigate orientations and produce movies
 SaveCoords = False
@@ -50,9 +52,8 @@ SamplingTimeForDensityProfile = 2 #radius / (velocity / D_R) / D_R/ 2
 ### OPTIONAL: calculating order parameter S at specific location
 ReportOrderParameter = True
 Range_um_for_OrderParameterCalc = 2
-LocationsToReportOrderParameter = np.array([48.8-40, 50, 48.8+40])
+LocationsToReportOrderParameter = np.array([48.8-40, 48.8-30, 48.8-20, 48.8-10, 48.8, 48.8+10, 48.8+20, 48.8+30, 48.8+40])
 
-kT = 4.11 * 10 ** (-21)
 
 ################################################################################
 
@@ -87,7 +88,6 @@ if not os.path.isdir(subFolder):
     os.mkdir(CurrentFolder)  # creating new folder.
 
 # run the simulation
-drag_N_sPum = drag_multiplier * kT / D_T * 10 ** 6
 for C in Cs:
     TorqueFactor=(C-1)/(C*V_H+V_T) * V_H
     if TorqueFactor==0:
