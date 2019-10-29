@@ -12,7 +12,7 @@ from SimulationLoop import runSimulationTorqueNoPPInt, runSimulationTorquePPInt
 from math import ceil, floor, sqrt
 import matplotlib.pyplot as plt
 
-subFolder = '20190926_HMDS_AF_tau_SDS_Relay/OrderParamScan'
+subFolder = '20190926_HMDS_AF_tau_SDS_Relay/FitDrag_movie'
 ### Setting pp interactions
 epsilon =  10 ** (-15)
 radius = 1
@@ -31,11 +31,14 @@ BoxX = ChannelLength_um * 4
 bins = 400
 ### setting simulation params
 ActiveVoltages = [8]
-D_T = 0.1  # use um^2/s, translational
+D_T = 0  # use um^2/s, translational. Thermal translational diffusion
 
 Cs = [1]  # ratio between the effective dielectric constants (hematite/TPM). Less than 1 would push wall, more than 1 would scatter off the wall.
-velocities = [4.5]
-D_Rs = [1/(20/4.5), 1/(100/4.5), 1/(200/4.5)]
+PersistenceLengths = [3]
+velocities = [1]
+tau_min = 0.3
+tau_max = 1000
+# D_Rs = [1/(20/4.5), 1/(100/4.5), 1/(200/4.5)]
 kT = 4.11 * 10 ** (-21)
 drag_multiplier = 1.82
 D_T_drag = 0.1 # use um^2/s, translational
@@ -46,7 +49,7 @@ dts = [0.05]
 numberOfSteps_s = [8000000] # s is for plural, not seconds. this is an array.
 
 ### OPTIONAL: setting up an optional coordinates file to investigate orientations and produce movies
-SaveCoords = False
+SaveCoords = True
 SamplingTimeForDensityProfile = 2 #radius / (velocity / D_R) / D_R/ 2
 
 ### OPTIONAL: calculating order parameter S at specific location
@@ -92,11 +95,16 @@ for C in Cs:
     TorqueFactor=(C-1)/(C*V_H+V_T) * V_H
     if TorqueFactor==0:
         print('Will skip torque')
-    for D_R in D_Rs:
+    for PersistenceLength in PersistenceLengths:
         for ActiveVoltage in ActiveVoltages:
             ForceFactor = 1 * (ActiveVoltage / Voltage_eq) ** 2
             for velocity in velocities:
-                if velocity < Force_Eq.max() * ForceFactor / drag_N_sPum * (C*2):
+                tau = PersistenceLength/ velocity
+                D_R = 1/tau
+                is_velocityNotTooHigh = (velocity < Force_Eq.max() * ForceFactor / drag_N_sPum * (C*2))
+                is_D_R_in_range = ((tau >= tau_min) and (tau <= tau_max))
+                print(PersistenceLength, velocity, 1/D_R)
+                if (is_velocityNotTooHigh and is_D_R_in_range):
                     for ctr1, NumberOfParticles in enumerate(NumberOfParticlesArray):
                         print('run...')
                         # setting dt, number of steps and sampling intervals for simulation
@@ -143,7 +151,7 @@ for C in Cs:
                         #
 
                         elapsed = time.time() - t
-                        print(elapsed)
+                        print('Elapsed time [s]: ' + str(elapsed))
 
                         ## exporting
                         # getting histographs
@@ -166,7 +174,7 @@ for C in Cs:
                         PressureLeft_NPum_lastHalf, PressureRight_NPum_lastHalf, SumPressure_NPum_lastHalf = np.array(
                             [AverageForceLeft_lastHalf, AverageForceRight_lastHalf, SumAverageForce_lastHalf]) * NumberOfParticles / BoxX
                         # print(AverageForceLeft,AverageForceRight,SumAverageForce)
-                        print(PressureLeft_NPum, PressureRight_NPum, SumPressure_NPum)
+                        print("{:.2E}".format(PressureLeft_NPum), "{:.2E}".format(PressureRight_NPum), "{:.2E}".format(SumPressure_NPum))
                         # export
                         filenameBase = getFilenameBase(ActiveVoltage, velocity, D_T, D_R, NumberOfParticles,
                                                        drag_multiplier, C)
@@ -189,8 +197,12 @@ for C in Cs:
                         if ReportOrderParameter:
                             ExportOrderParamArray = np.vstack([LocationsToReportOrderParameter, OrderParameters, OrderParameterSampleCounters])
                             np.savetxt(subFolder + "/" + filenameBase + "_OrderParam.csv", ExportOrderParamArray.T, delimiter=",")
-
+                else:
+                    if not is_velocityNotTooHigh:
+                        print('Skipped due to high velocity')
+                    else:
+                        print('Skipped due to tau not in range: ', tau)
 # save force profile to folder
 ExportArray=np.vstack((dist_Eq,Force_Eq))
 np.savetxt(subFolder + "/"  + "UsedEq_ForceProfile.csv", ExportArray.T, delimiter=",")
-print(subFolder + "/" + subFolder + "UsedEq_ForceProfile.csv")
+print('Exported file: ' + subFolder + "/" + subFolder + "UsedEq_ForceProfile.csv")
