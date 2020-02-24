@@ -1,5 +1,3 @@
-# try to
-
 ### load imported
 import time
 import os
@@ -12,53 +10,58 @@ from SimulationLoop import runSimulationTorqueNoPPInt, runSimulationTorquePPInt
 from math import ceil, floor, sqrt
 import matplotlib.pyplot as plt
 
-subFolder = '20190926_HMDS_AF_tau_SDS_Relay/FitDrag_movie'
+subFolder = '20190926_HMDS_AF_tau_SDS_Relay/InteractingPartcls'
 ### Setting pp interactions
-epsilon =  10 ** (-15)
+epsilon = 10 ** (-15)
 radius = 1
 ppType = 'WCA'
 ###  setting wall interactions
-WallType = 'experimental' #'BiHarm'#'linear' #  go into forces.py and make sure you are using the right profile.
+WallType = 'experimental' #'linear' #'BiHarm'#  go into forces.py and make sure you are using the right profile.
 Voltage_eq = 8
 ForceExp = 'polynom 7'  # change it here or meta files will be bad.
-f_max_N = 5 * 10 ** (-15)
-y_wl = 10
-y_wr = 90
-RhoZeroLocation_um = np.mean([y_wl, y_wr])
+f_max_N = 5 * 10 ** (-13)
 ChannelLength_um = 100
+y_wl = 10
+y_wr = ChannelLength_um - 10
+RhoZeroLocation_um = np.mean([y_wl, y_wr])
 ## spatial grid settings:
 BoxX = ChannelLength_um * 4
 bins = 400
-### setting simulation params
+### setting simulation physical params
 ActiveVoltages = [8]
-D_T = 0  # use um^2/s, translational. Thermal translational diffusion
+D_T = 0.1  # use um^2/s, translational. Thermal translational diffusion
 
 Cs = [1]  # ratio between the effective dielectric constants (hematite/TPM). Less than 1 would push wall, more than 1 would scatter off the wall.
-PersistenceLengths = [3]
+PersistenceLengths = [10, 50]
 velocities = [1]
+# upper and lower limits for tau persistence length.
 tau_min = 0.3
-tau_max = 1000
+tau_max = 1000000000
 # D_Rs = [1/(20/4.5), 1/(100/4.5), 1/(200/4.5)]
 kT = 4.11 * 10 ** (-21)
+## effective drag for the swimming particles
 drag_multiplier = 1.82
 D_T_drag = 0.1 # use um^2/s, translational
 drag_N_sPum = drag_multiplier * kT / D_T_drag * 10 ** 6
 
-NumberOfParticlesArray = [100]
-dts = [0.05]
-numberOfSteps_s = [8000000] # s is for plural, not seconds. this is an array.
+
+NumberOfParticlesArray = [10, 100, 1000]
+dts = [0.02, 0.02, 0.005]
+numberOfSteps_s = [20000000, 2000000, 200000] # s is for plural, not seconds. this is an array.
+assert len(NumberOfParticlesArray) ==len(dts) == len(numberOfSteps_s), 'All lengths must be the same for the loop to complete.'
 
 ### OPTIONAL: setting up an optional coordinates file to investigate orientations and produce movies
 SaveCoords = True
-SamplingTimeForDensityProfile = 2 #radius / (velocity / D_R) / D_R/ 2
+SamplingTimeForDensityProfile = 1  #radius / (velocity / D_R) / D_R/ 2 # in seconds.
 
 ### OPTIONAL: calculating order parameter S at specific location
-ReportOrderParameter = True
+ReportOrderParameter = False
 Range_um_for_OrderParameterCalc = 2
-LocationsToReportOrderParameter = np.array([48.8-40, 48.8-30, 48.8-20, 48.8-10, 48.8, 48.8+10, 48.8+20, 48.8+30, 48.8+40])
+CenterOfPotential = 48.8
+LocationsToReportOrderParameter = np.linspace(CenterOfPotential - 40, CenterOfPotential + 40, 9)
+# np.array([48.8-40, 48.8-30, 48.8-20, 48.8-10, 48.8, 48.8+10, 48.8+20, 48.8+30, 48.8+40])
 
-
-################################################################################
+#############################End of user parameters###################################################
 
 ### init pp interactions
 if ppType == 'WCA':
@@ -90,7 +93,7 @@ CurrentFolder = CurrentFolder.replace('/notebooks', '')
 if not os.path.isdir(subFolder):
     os.mkdir(CurrentFolder)  # creating new folder.
 
-# run the simulation
+# run the simulations (different Cs (torques), persistence lengths, voltages, velocities, Number of particles).
 for C in Cs:
     TorqueFactor=(C-1)/(C*V_H+V_T) * V_H
     if TorqueFactor==0:
@@ -101,12 +104,12 @@ for C in Cs:
             for velocity in velocities:
                 tau = PersistenceLength/ velocity
                 D_R = 1/tau
-                is_velocityNotTooHigh = (velocity < Force_Eq.max() * ForceFactor / drag_N_sPum * (C*2))
+                is_velocityNotTooHigh = (velocity < Force_Eq.max() * ForceFactor / drag_N_sPum * (C*2)) # if too high, the particle escapes chamber.
                 is_D_R_in_range = ((tau >= tau_min) and (tau <= tau_max))
                 print(PersistenceLength, velocity, 1/D_R)
                 if (is_velocityNotTooHigh and is_D_R_in_range):
                     for ctr1, NumberOfParticles in enumerate(NumberOfParticlesArray):
-                        print('run...')
+                        print('run...') # this section actually runs a SINGLE simulation
                         # setting dt, number of steps and sampling intervals for simulation
                         dt=dts[ctr1]
                         numberOfSteps=numberOfSteps_s[ctr1]
@@ -127,7 +130,7 @@ for C in Cs:
                         if ChannelLength_um/bins > velocity*dt:
                             print('Histogram uses ', bins, 'bins for a channel length of',ChannelLength_um,', which is maybe too little')
 
-                        # run the loops
+                        # run the loops using Numba Jit.
                         t = time.time()
                         # coords = runSimulationNoPPInt(coordsForProfile, coordsForRunning, velocity, NumberOfParticles,
                         #                             dt, numberOfSteps, NumberOfSamplesForDensityProfile,
@@ -135,28 +138,30 @@ for C in Cs:
                         #                             radius, BoxX, BoxY, IntRange, D_T, D_R, y_wl, y_wr, f_max_N,
                         #                             epsilon, ppType)
 
-                        # coords = runSimulationTorquePPInt(coordsForProfile, coordsForRunning, velocity, NumberOfParticles,
-                        #                             dt, numberOfSteps, NumberOfSamplesForDensityProfile,
-                        #                             drag_N_sPum, ForceFactor, ChannelLength_um,
-                        #                             radius, BoxX, BoxY, IntRange, D_T, D_R, y_wl, y_wr, f_max_N,
-                        #                             epsilon, ppType, TorqueFactor, arm, rot_drag_N_sPum3, WallType = WallType)
-
-                        coords, OrderParameters, OrderParameterSampleCounters = runSimulationTorqueNoPPInt(coordsForProfile, coordsForRunning, velocity, NumberOfParticles,
+                        coords, OrderParameters, OrderParameterSampleCounters = runSimulationTorquePPInt(coordsForProfile, coordsForRunning, velocity, NumberOfParticles,
                                                     dt, numberOfSteps, NumberOfSamplesForDensityProfile,
                                                     drag_N_sPum, ForceFactor, ChannelLength_um,
                                                     radius, BoxX, BoxY, IntRange, D_T, D_R, y_wl, y_wr, f_max_N,
                                                     epsilon, ppType, TorqueFactor, arm, rot_drag_N_sPum3,
                                                     ReportOrderParameter, Range_um_for_OrderParameterCalc, LocationsToReportOrderParameter,
                                                     WallType = WallType)
+
+                        # coords, OrderParameters, OrderParameterSampleCounters = runSimulationTorqueNoPPInt(coordsForProfile, coordsForRunning, velocity, NumberOfParticles,
+                        #                             dt, numberOfSteps, NumberOfSamplesForDensityProfile,
+                        #                             drag_N_sPum, ForceFactor, ChannelLength_um,
+                        #                             radius, BoxX, BoxY, IntRange, D_T, D_R, y_wl, y_wr, f_max_N,
+                        #                             epsilon, ppType, TorqueFactor, arm, rot_drag_N_sPum3,
+                        #                             ReportOrderParameter, Range_um_for_OrderParameterCalc, LocationsToReportOrderParameter,
+                        #                             WallType = WallType)
                         #
 
                         elapsed = time.time() - t
                         print('Elapsed time [s]: ' + str(elapsed))
 
-                        ## exporting
+                        ## exporting single simulation run into files.
                         # getting histographs
                         x_hist, hist = CalcPDFForYlocations(coords[:, 2::3], bins=bins)
-                        # only use the second hald for the histogram:
+                        # only use the second half for the histogram:
                         x_hist_lastHalf, hist_lastHalf = CalcPDFForYlocations(coords[int(len(coords)/2):,2::3], bins=bins)
                         indToRhoZero = np.argmin(np.abs(x_hist - RhoZeroLocation_um))
                         ProbAtCenter = hist[indToRhoZero] # REALLY BAD. I need an aux function to do cumsum to the force function and find the max point. That is where the Prob should be sampled.

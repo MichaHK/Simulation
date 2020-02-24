@@ -28,7 +28,7 @@ def writeMetaData(filenameBase, kT,drag_N_sPum,drag_multiplier,dt,numberOfSteps,
                   PressureLeft_NPum_lastHalf, PressureRight_NPum_lastHalf, SumPressure_NPum_lastHalf, C, arm,
                   SamplingTimeForDensityProfile):
     NowDateObj = datetime.datetime.now()
-    comments = "Force profile is saved to folder, so just multiply by ForceFactor to get the profile used here"
+    comments = "Force profile is saved to folder_ so just multiply by ForceFactor to get the profile used here"
     exportDict = {'kT_J': kT, 'drag_N_sPum': drag_N_sPum, 'drag_multiplier': drag_multiplier,
                   'dt_s': dt,
                   'numberOfSteps': numberOfSteps,
@@ -67,7 +67,7 @@ def getFilenameBase(ActiveVoltage, velocity, D_T, D_R, NumberOfParticles, drag_m
               '_vel_' + str(velocity).replace('.', 'p') +
               '_Dt_' + str(D_T).replace('.', 'p') +
               '_C_' + str(C).replace('.', 'p') +
-              '_Dr_' + str(np.round(D_R,2)).replace('.', 'p') +
+              '_Dr_' + str(np.round(D_R,3)).replace('.', 'p') +
               '_NumPrtcls_' + str(NumberOfParticles) +
               '_dragFactorToPsv_' + str(np.round(drag_multiplier, 2)).replace('.', 'p'))
     return string

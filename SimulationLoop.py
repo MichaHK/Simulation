@@ -252,9 +252,12 @@ def runSimulationTorquePPInt(coordsForProfile, coordsForRunning, velocity, Numbe
                                drag_N_sPum, ForceFactor, ChannelLength_um,
                                radius, BoxX, BoxY, IntRange, D_T, D_R, y_wl, y_wr, f_max_N,
                                epsilon, ppType,
-                               TorqueFactor, arm, rot_drag_N_sPum3, WallType = 'linear'):
+                               TorqueFactor, arm, rot_drag_N_sPum3,
+                                ReportOrderParameter, Range_um_for_OrderParameterCalc, LocationsToReportOrderParameter,
+                                WallType = 'linear'):
     sigma = 2 * radius
     # initialize the variables for the linked cells.
+    # see also: http://cacs.usc.edu/education/cs596/01-1LinkedListCell.pdf
     Lcx = int(floor(BoxX / IntRange))  # Number of x cells, # BoxX is Region[0] in the original script;
     Lcy = int(floor(BoxY / IntRange))  # Number of y cells, BoxY is Region[1] in the original script;
     IntRange_cx = BoxX / Lcx  # edge in um of x cell. rc[0] in original script
@@ -272,6 +275,10 @@ def runSimulationTorquePPInt(coordsForProfile, coordsForRunning, velocity, Numbe
     gap = ceil(LastFrameToUse / NumberOfSamplesForDensityProfile)
     k = 0  # indicator for export array.
     coordsForProfile[0, :] = coordsForRunning[0, :]
+    if ReportOrderParameter:
+        S = np.zeros(len(LocationsToReportOrderParameter))
+        OrderParameterSampleCounters = np.zeros(len(LocationsToReportOrderParameter))
+        OrderParameter = np.zeros(len(LocationsToReportOrderParameter))
     # Run over timesteps
     for i in range(1, numberOfSteps):
         # indexes for the two rows containing old and new coordinates (coordsForRunning)
@@ -305,8 +312,12 @@ def runSimulationTorquePPInt(coordsForProfile, coordsForRunning, velocity, Numbe
             # Adding contribution due to wall forces ### 5/3/19
             if WallType == 'linear':
                 f = wall_force_linear(coordsForRunning[jo, particle * 3 + 2], f_max_N, y_wl, y_wr, ChannelLength_um)
-            if WallType == 'experimental':
+            elif WallType == 'experimental':
                 f = exp_wall_force(coordsForRunning[jo, particle * 3 + 2], ChannelLength_um)
+            else:
+                print('Error: WallType variable is not linear or experimental')
+                f= None
+                break
             coordsForRunning[jn, particle * 3 + 2] += f / drag_N_sPum * ForceFactor * dt
             # Adding wall torque
             if TorqueFactor != 0:
@@ -314,10 +325,22 @@ def runSimulationTorquePPInt(coordsForProfile, coordsForRunning, velocity, Numbe
                     f_at_hem = wall_force_linear(coordsForRunning[jo, particle * 3 + 2] + arm * SinTheta, f_max_N, y_wl, y_wr, ChannelLength_um)
                 if WallType == 'experimental':
                     f_at_hem = exp_wall_force(coordsForRunning[jo, particle * 3 + 2] + arm * SinTheta, ChannelLength_um)
+                else:
+                    print('Error: WallType variable is not linear or experimental')
+                    f= None
+                    break
                 dTheta = f_at_hem * TorqueFactor * arm * CosTheta / rot_drag_N_sPum3 * ForceFactor * dt
                 coordsForRunning[jn, particle * 3] += dTheta
                 if np.abs(dTheta) > 0.2:
                     print('dTheta is', dTheta, 'at timestep' , i, 'and y location', coordsForRunning[jn, particle * 3 + 2])
+
+            if ReportOrderParameter:
+                y = coordsForRunning[jo, particle * 3 + 2]
+                Theta = coordsForRunning[jn, particle * 3]
+                for ind in range(len(LocationsToReportOrderParameter)):
+                    if ((LocationsToReportOrderParameter[ind] - y)**2 < Range_um_for_OrderParameterCalc**2):
+                        S[ind] = S[ind] + (2*(np.cos(Theta))**2 - 1)
+                        OrderParameterSampleCounters[ind] = OrderParameterSampleCounters[ind] + 1
 
             # Build linked cell list for timestep i, to be used for inter-particle forces
             # http://cacs.usc.edu/education/cs596/01-1LinkedListCell.pdf
@@ -380,12 +403,6 @@ def runSimulationTorquePPInt(coordsForProfile, coordsForRunning, velocity, Numbe
                                             coordsForRunning[jn, int(l * 3 + 2)] += Force_Y / drag_N_sPum * dt
                                             coordsForRunning[jn, int(m * 3 + 1)] -= Force_X / drag_N_sPum * dt
                                             coordsForRunning[jn, int(m * 3 + 2)] -= Force_Y / drag_N_sPum * dt
-                                            # apply periodic boundary conditions on updated particles- X axis ONLY.
-                                            # for int_prtcls in [l, m]:
-                                            # if coordsForRunning[jn,int(int_prtcls*3+1)]<0:
-                                            #     coordsForRunning[jn,int(int_prtcls*3+1)]+=BoxX
-                                            # if coordsForRunning[jn,int(int_prtcls*3+1)]>BoxX:
-                                            #     coordsForRunning[jn,int(int_prtcls*3+1)]-=BoxX
                                             # Useful warning flag on out of bounds cases. However, will not work with python2 and Numba. Works in python3.
                                             for int_prtcls in (l, m):
                                                 if ((coordsForRunning[jn, int(int_prtcls * 3 + 2)] > BoxY) | (
@@ -400,7 +417,7 @@ def runSimulationTorquePPInt(coordsForProfile, coordsForRunning, velocity, Numbe
                                     m = lscl[int(m)]  # get the next particle in the neighboring cell.
                                 l = lscl[int(l)]  # get the next particle in X_cell_ind, Y_cell_ind cell.
 
-        for particle in range(NumberOfParticles):  # should be prange
+        for particle in range(NumberOfParticles):  # should be prange. apply periodic boundary conditions on updated particles- X axis ONLY
             if coordsForRunning[jn, particle * 3 + 1] > BoxX:
                 coordsForRunning[jn, particle * 3 + 1] -= BoxX
             if coordsForRunning[jn, particle * 3 + 1] < 0:
@@ -416,7 +433,15 @@ def runSimulationTorquePPInt(coordsForProfile, coordsForRunning, velocity, Numbe
                 coordsForProfile[k, 2::3] = coordsForRunning[jo, 2::3]
                 k += 1
     print('Done')
-    return coordsForProfile
+    if ReportOrderParameter:
+        for ind in range(len(S)): # pythonian way not working with jit here
+            if OrderParameterSampleCounters[ind] != 0:
+                OrderParameter[ind] = S[ind]/ OrderParameterSampleCounters[ind]
+            else:
+                OrderParameter[ind] = np.nan
+    else:
+        OrderParameter = np.zeros(len(LocationsToReportOrderParameter))
+    return coordsForProfile, OrderParameter, OrderParameterSampleCounters
 
 
 @jit(nopython=True, parallel=True)
